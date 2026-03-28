@@ -1,16 +1,19 @@
 {
     "data": "cs",
     "path": "./data/",
-    "algo": "gcn_thr",
+    "algo": "sgc",
     "epochs": 200,
     "patience": 20,
-    "lr": 0.001,
+    "lr": 0.01,
     "weight_decay": 1e-5,
     "layer": 2,
     "hidden": 512,
     "dropout": 0.5,
-    "thr_a": 0.5,
-    "thr_w": 0.5,
-    "inductive": false,
-    "multil": false
+    "thr_a": 0.0,
+    "thr_w": 0.0,
+    "chn": {
+        "hop": 20,
+        "alpha": 0.0,
+        "rrz": 0.5
+    }
 }

@@ -56,36 +56,52 @@ stopwatch = metric.Stopwatch()
 adj, feat, labels, idx, nfeat, nclass = load_edgelist(datastr=args.data, datapath=args.path,
                 inductive=args.inductive, multil=args.multil, seed=args.seed)
 
-if args.algo.split('_')[0] in ['gcn2']:
+# ========== Load
+adj, feat, labels, idx, nfeat, nclass = load_edgelist(datastr=args.data, datapath=args.path,
+                inductive=args.inductive, multil=args.multil, seed=args.seed)
+
+# --- KHỐI KHỞI TẠO MODEL DUY NHẤT ---
+algo_base = args.algo.split('_')[0]
+
+if algo_base == 'gcn2':
     model = models.SandwitchThr(nlayer=args.layer, nfeat=nfeat, nhidden=args.hidden, nclass=nclass,
                         thr_a=args.thr_a, thr_w=args.thr_w, dropout=args.dropout, layer=args.algo)
-elif args.algo.split('_')[0] in ['mlp']:
+elif algo_base == 'mlp':
     model = models.MLP(nlayer=args.layer, nfeat=nfeat, nhidden=args.hidden, nclass=nclass,
                         thr_w=args.thr_w, dropout=args.dropout, layer='mlp')
+elif 'sgc' in args.algo or 'appnp' in args.algo:
+    # Mô hình Decoupled dùng class MLP để nén trọng số
+    model = models.MLP(
+        nlayer=args.layer, nfeat=nfeat, nhidden=args.hidden, nclass=nclass, 
+        dropout=args.dropout, thr_w=args.thr_w, layer=args.algo
+    )
 else:
-    # model = models.GNNThr(nlayer=args.layer, nfeat=nfeat, nhidden=args.hidden, nclass=nclass,
-    #                     thr_a=args.thr_a, thr_w=args.thr_w, dropout=args.dropout, layer=args.algo)
-    if 'sgc' in args.algo or 'appnp' in args.algo:
-        model = models.MLP(
-            nlayer=args.layer, 
-            nfeat=nfeat, 
-            nhidden=args.hidden, 
-            nclass=nclass, 
-            dropout=args.dropout, 
-            thr_w=args.thr_w, 
-            layer=args.algo
-        )
-    else:
-        model = models.GNNThr(
-            nlayer=args.layer, 
-            nfeat=nfeat, 
-            nhidden=args.hidden, 
-            nclass=nclass,
-            thr_a=args.thr_a, 
-            thr_w=args.thr_w, 
-            dropout=args.dropout, 
-            layer=args.algo
-        )
+    # Các mô hình Iterative (GCN, GAT, Gsage) dùng class GNNThr
+    model = models.GNNThr(
+        nlayer=args.layer, nfeat=nfeat, nhidden=args.hidden, nclass=nclass,
+        thr_a=args.thr_a, thr_w=args.thr_w, dropout=args.dropout, layer=args.algo
+    )
+
+# --- NẠP THÔNG TIN ĐỒ THỊ (Dành cho Table 1) ---
+if hasattr(model, 'set_adj_info'):
+    try:
+        if isinstance(adj['train'], tuple):
+            # Trường hợp đồ thị là một cặp (edge_index, edge_weight)
+            num_edges = adj['train'][0].shape[1]
+        elif torch.is_tensor(adj['train']):
+            # Trường hợp đồ thị là một Tensor duy nhất
+            if adj['train'].dim() == 2 and adj['train'].shape[0] == 2:
+                num_edges = adj['train'].shape[1] # edge_index [2, m]
+            else:
+                num_edges = torch.count_nonzero(adj['train']).item() # ma trận dày
+        else:
+            # Trường hợp ma trận thưa Scipy
+            num_edges = adj['train'].nnz()
+    except Exception:
+        num_edges = 0 # Phòng hờ trường hợp khác
+        
+    model.set_adj_info(num_edges)
+
 model.reset_parameters()
 model.kwargs['diag'] = None
 # diag = model.kwargs['diag'] if ('_' in args.algo) else None

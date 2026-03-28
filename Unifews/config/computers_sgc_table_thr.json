@@ -1,0 +1,19 @@
+{
+    "data": "computers",
+    "path": "./data/",
+    "algo": "sgc_thr",
+    "epochs": 200,
+    "patience": 30,
+    "lr": 0.01,
+    "weight_decay": 5e-4,
+    "layer": 2,
+    "hidden": 512,
+    "dropout": 0.5,
+    "thr_a": 0.5,
+    "thr_w": 0.1,
+    "chn": {
+        "hop": 20,
+        "alpha": 0.0,
+        "rrz": 0.5
+    }
+}

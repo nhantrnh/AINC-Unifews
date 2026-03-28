@@ -15,7 +15,7 @@ from torch import Tensor
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from .gen_cat import gencat, feature_extraction
 from .data_processor import DataProcess, DataProcess_inductive, matstd_clip
-from precompute.prop import A2Prop
+# from precompute.prop import A2Prop
 
 np.set_printoptions(linewidth=160, edgeitems=5, threshold=20,
                     formatter=dict(float=lambda x: "% 9.3e" % x))

@@ -148,10 +148,11 @@ class GCNIIConv(MessagePassing):
 
 # ==========
 class ConvThr(nn.Module):
-    def __init__(self, *args, thr_a, thr_w, **kwargs):
+    def __init__(self, *args, thr_a, thr_w, thr_mode='adaptive', **kwargs):
         super(ConvThr, self).__init__(*args, **kwargs)
         self.threshold_a = thr_a
         self.threshold_w = thr_w
+        self.threshold_mode = thr_mode
         self.idx_keep = torch.Tensor([])
         self.prune_lst = []
         """
@@ -338,8 +339,11 @@ class GCNConvThr(ConvThr, GCNConvRaw):
             # self.logger_msg.numel_after = torch.sum(output != 0).item()
 
             norm_feat_msg = torch.norm(output, dim=1)       # each entry accross all features
-            norm_all_msg = torch.norm(norm_feat_msg, dim=None, p=1)/output.shape[0]
-            mask_cmp = norm_feat_msg < self.threshold_a * norm_all_msg
+            if self.threshold_mode == 'fixed':
+                mask_cmp = norm_feat_msg < self.threshold_a
+            else:
+                norm_all_msg = torch.norm(norm_feat_msg, dim=None, p=1) / output.shape[0]
+                mask_cmp = norm_feat_msg < self.threshold_a * norm_all_msg
             # mask_cmp = norm_feat < self.threshold_a * self.norm_all_node
             mask_0 = torch.logical_or(mask_0, mask_cmp)
             mask_0[self.idx_lock] = False
@@ -375,11 +379,20 @@ class GCNConvThr(ConvThr, GCNConvRaw):
             else:
                 if prune.is_pruned(self.lin):
                     prune.remove(self.lin, 'weight')
-            norm_node_in = torch.norm(x, dim=0)
-            norm_all_in = torch.norm(norm_node_in, dim=None)/x.shape[1]
-            if norm_all_in > 1e-8:
-                threshold_wi = self.threshold_w * norm_all_in / norm_node_in
+            if self.threshold_mode == 'fixed':
+                threshold_wi = torch.full(
+                    (x.shape[1],),
+                    float(self.threshold_w),
+                    dtype=x.dtype,
+                    device=x.device,
+                )
                 ThrInPrune.apply(self.lin, 'weight', threshold_wi)
+            else:
+                norm_node_in = torch.norm(x, dim=0)
+                norm_all_in = torch.norm(norm_node_in, dim=None) / x.shape[1]
+                if norm_all_in > 1e-8:
+                    threshold_wi = self.threshold_w * norm_all_in / norm_node_in
+                    ThrInPrune.apply(self.lin, 'weight', threshold_wi)
             x = self.lin(x)
         elif self.scheme_w == 'keep':
             x = self.lin(x)

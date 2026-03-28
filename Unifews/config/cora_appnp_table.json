@@ -1,0 +1,19 @@
+{
+    "data": "cora",
+    "path": "./data/",
+    "algo": "appnp",
+    "epochs": 200,
+    "patience": 20,
+    "lr": 0.01,
+    "weight_decay": 1e-5,
+    "layer": 2,
+    "hidden": 512,
+    "dropout": 0.5,
+    "thr_a": 0.0,
+    "thr_w": 0.0,
+    "chn": {
+        "hop": 20,
+        "alpha": 0.1,
+        "rrz": 0.5
+    }
+}
