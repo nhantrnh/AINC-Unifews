@@ -174,14 +174,22 @@ class ConvThr(nn.Module):
 
     def get_idx_lock(self, edge_index, node_lock):
         # <<<<<<<<<< performance sensitive
+        num_edges = edge_index.shape[1]
+        if num_edges == 0:
+            return torch.tensor([], dtype=torch.long, device=edge_index.device)
+
         # Lock edges ending at node_lock
-        idx_lock = torch.tensor([], dtype=torch.int32).to(edge_index.device)
-        bs = int(2**28 / edge_index.shape[1])
-        for i in range(0, node_lock.shape[0], bs):
-            batch = node_lock[i:min(i+bs, node_lock.shape[0])].to(edge_index.device)
-            idx_lock = torch.cat((idx_lock, torch.where(edge_index[1].unsqueeze(0) == batch.unsqueeze(1))[1]))
+        idx_lock = torch.tensor([], dtype=torch.long, device=edge_index.device)
+        if node_lock.numel() > 0:
+            bs = max(1, int(2**28 / num_edges))
+            for i in range(0, node_lock.shape[0], bs):
+                batch = node_lock[i:min(i + bs, node_lock.shape[0])].to(edge_index.device)
+                idx_lock = torch.cat((idx_lock, torch.where(edge_index[1].unsqueeze(0) == batch.unsqueeze(1))[1]))
+
         # Lock self-loop edges
         idx_diag = torch.where(edge_index[0] == edge_index[1])[0].to(idx_lock.device)
+        if idx_lock.numel() == 0:
+            return torch.unique(idx_diag)
         idx_lock = torch.cat((idx_lock, idx_diag))
         return torch.unique(idx_lock)
 
@@ -434,12 +442,13 @@ class GCNConvThr(ConvThr, GCNConvRaw):
         x_out, (edge_index, edge_weight) = output
         f_in, f_out = x_in.shape[-1], x_out.shape[-1]
         n, m = x_in.shape[0], edge_index.shape[1]
+        msg_edges = max(m - n, 0)
 
         # Linear
         flops_bias = f_out if module.lin.bias is not None else 0
         module.__flops__ += int((f_in * f_out * module.logger_w.ratio + flops_bias) * n)
         # Message
-        module.__flops__ += f_in * (m - n)
+        module.__flops__ += f_in * msg_edges
 
 
 class GATv2ConvRaw(pyg_nn.GATv2Conv):
@@ -744,6 +753,7 @@ class GATv2ConvThr(ConvThr, GATv2ConvRaw):
         x_out, edge_index = output
         f_in, f_h, f_c = x_in.shape[-1], module.heads, module.out_channels
         n, m = x_in.shape[0], edge_index.shape[1]
+        msg_edges = max(m - n, 0)
 
         # Linear
         flops_lin = f_in * f_h * f_c * n
@@ -752,8 +762,8 @@ class GATv2ConvThr(ConvThr, GATv2ConvRaw):
         flops_lin = int(flops_lin * module.logger_w.ratio)
         module.__flops__ += flops_lin
         # Message
-        flops_attn  = 2 * f_c * (m - n)      # relu & alpha
-        flops_attn += 2 * (m - n)            # softmax & attention
+        flops_attn  = 2 * f_c * msg_edges      # relu & alpha
+        flops_attn += 2 * msg_edges            # softmax & attention
         flops_attn *= f_h
         module.__flops__ += flops_attn
         # Bias and concat
@@ -906,11 +916,12 @@ class GCNIIConvThr(ConvThr, GCNIIConvRaw):
         x_out, (edge_index, edge_weight) = output
         f_in, f_out = x_in.shape[-1], x_out.shape[-1]
         n, m = x_in.shape[0], edge_index.shape[1]
+        msg_edges = max(m - n, 0)
 
         module.__flops__ += int((f_in * f_out * module.logger_w.ratio) * n)
         if module.lin2 is not None:
             module.__flops__ += int(f_in * f_out * module.logger_w.ratio * n)
-        module.__flops__ += f_in * (m - n)
+        module.__flops__ += f_in * msg_edges
 
 
 class SAGEConvRaw(pyg_nn.SAGEConv):
@@ -1040,11 +1051,12 @@ class SAGEConvThr(ConvThr, SAGEConvRaw):
         x_out, (edge_index, edge_weight) = output
         f_in, f_out = x_in.shape[-1], x_out.shape[-1]
         n, m = x_in.shape[0], edge_index.shape[1]
+        msg_edges = max(m - n, 0)
 
         module.__flops__ += int((f_in * f_out * module.logger_w.ratio) * n)
         if module.root_weight:
             module.__flops__ += int(f_in * f_out * module.logger_w.ratio * n)
-        module.__flops__ += f_in * (m - n)
+        module.__flops__ += f_in * msg_edges
 
 
 # ==========
