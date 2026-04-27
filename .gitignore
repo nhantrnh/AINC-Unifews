@@ -1,0 +1,44 @@
+# ── Data & outputs (don't push) ──
+Unifews/data/
+Unifews/save/
+Unifews/save_w1/
+save/
+figures/
+results/
+
+# ── Paper & docs (don't push) ──
+Formatting_Instructions_For_NeurIPS_2026/
+*.tex
+*.bib
+*.sty
+*.pdf
+
+# ── Markdown files ──
+*.md
+
+# ── Text files ──
+*.txt
+
+# ── Log files ──
+*.log
+*.csv
+
+# ── Environment files ──
+Unifews/env.txt
+Unifews/env.yaml
+
+# ── Shell scripts ──
+*.sh
+
+# ── OS files ──
+.DS_Store
+.vscode/
+
+# ── Python cache ──
+__pycache__/
+*.py[co]
+*.egg-info/
+.ipynb_checkpoints/
+
+# ── Misc ──
+*.CITATION.cff
